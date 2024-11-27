@@ -44,35 +44,39 @@ def fft_image(image):
     plt.show()
 """
 
-def fft_image(image):
-    img = cv.imread(image, cv.IMREAD_GRAYSCALE)
-
 def dft(signal):
-    n = len(signal)
-    dft_result = np.zeros(n, dtype=complex)
-    
-    for k in range(n):  
-        for i in range(n):  
-            angle = -1j * 2 * np.pi * k * i / n
-            dft_result[k] += signal[n] * np.exp(angle)
-    
+    N = len(signal)
+    dft_result = np.zeros(N, dtype=complex)
+    for k in range(N):
+        for n in range(N):  
+            angle = -1j * 2 * np.pi * k * n / N
+            dft_result[n] = signal[n] * np.exp(angle)
     return dft_result
 
 def inverse_dft(signal):
-    n = len(signal)
-    inverse_dft_result = np.zeros(n, dtype=complex)
-    
-    for k in range(n):  
+    N = len(signal)
+    inverse_dft_result = np.zeros(N, dtype=complex)
+    for k in range(N):
         for i in range(n):  
             angle = 1j * 2 * np.pi * k * i / n
-            inverse_dft_result[k] += signal[n] * np.exp(angle) / n
-    
+            inverse_dft_result[k] = signal[n] * np.exp(angle) / N
     return inverse_dft_result
 
-
+def fft(signal, k):
+    N = len(signal)
+    if N < 4:
+        result = 0
+        for n in range(N):
+            angle = -1j * 2 * np.pi * k * n / N
+            result += signal[n] * np.exp(angle)
+        return result
+    else:
+        even = [signal[i] for i in range(0, N, 2)]
+        odd = [signal[i] for i in range(1, N, 2)]
+        return fft(even, k) + fft(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
 
 
 if __name__ == "__main__":
     
     parameters = set_arguments(sys.argv)
-    fft_image('moonlanding.png')
+    #fft_image('moonlanding.png')
