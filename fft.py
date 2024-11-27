@@ -57,7 +57,7 @@ def inverse_dft(signal):
     N = len(signal)
     inverse_dft_result = np.zeros(N, dtype=complex)
     for k in range(N):
-        for i in range(n):  
+        for i in range(N):  
             angle = 1j * 2 * np.pi * k * i / n
             inverse_dft_result[k] = signal[n] * np.exp(angle) / N
     return inverse_dft_result
