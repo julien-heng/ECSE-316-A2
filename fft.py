@@ -49,6 +49,11 @@ def fft_image(image):
 
 def dft(signal):
     N = len(signal)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    signal = np.append(signal, np.zeros(N_final - N))
+    N = N_final
+
     dft_result = np.zeros(N, dtype=complex)
     for k in range(N):
         result = 0
@@ -60,6 +65,11 @@ def dft(signal):
 
 def inverse_dft(signal):
     N = len(signal)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    signal = np.append(signal, np.zeros(N_final - N))
+    N = N_final
+
     inverse_dft_result = np.zeros(N, dtype=complex)
     for n in range(N):
         result = 0
@@ -100,8 +110,8 @@ def twod_fft(image):
     print(len(image))
     fft_row = np.array([fft(row) for row in image])
     print('done fft_row')
-    fft_col = np.array([fft(col) for col in np.transpose(fft_row)])
-    return np.transpose(fft_col)
+    fft_col = np.transpose(np.array([fft(col) for col in np.transpose(fft_row)]))
+    return fft_col
 
 def inverse_fft(ft):
     N = len(ft)
