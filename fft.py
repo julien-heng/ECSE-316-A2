@@ -47,6 +47,17 @@ def fft_image(image):
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
     plt.show()
 
+def npfft_image(image):
+    img = cv.imread(image, cv.IMREAD_GRAYSCALE)
+    f = np.fft.fft2(img)
+    fft_magnitude = np.log(np.abs(f) + 1)
+ 
+    plt.subplot(121),plt.imshow(img, cmap = 'gray')
+    plt.title('Input Image'), plt.xticks([]), plt.yticks([])
+    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray')
+    plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    plt.show()
+
 def dft(signal):
     N = len(signal)
     power = math.ceil(np.log2(N))
@@ -79,9 +90,10 @@ def inverse_dft(signal):
         inverse_dft_result[n] = result / N
     return inverse_dft_result
 
+# Unused
 def fft_aux(signal, k):
     N = len(signal)
-    if N <= 32:
+    if N <= 4:
         result = 0
         for m in range(N):
             angle = -1j * 2 * np.pi * k * m / N
@@ -92,6 +104,8 @@ def fft_aux(signal, k):
         odd = [signal[i] for i in range(1, N, 2)]
         return fft_aux(even, k) + fft_aux(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
 
+# Doesn't work
+'''
 def fft(signal):
     print('start fft')
     N = len(signal)
@@ -104,6 +118,21 @@ def fft(signal):
     for k in range(N):
         fft_result[k] = fft_aux(signal, k)
     return fft_result
+'''
+
+def fft(x):
+    print('fft')
+    N = len(x)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    x = np.append(x, np.zeros(N_final - N))
+    N = N_final
+    if N <= 1:
+        return x
+    even = fft(x[::2])
+    odd = fft(x[1::2])
+    factor = np.exp(-2j * np.pi * np.arange(N) / N)
+    return np.concatenate([even + factor[:N//2] * odd, even + factor[N//2:] * odd])
 
 def twod_fft(image):
     print('start fft_row')
@@ -112,6 +141,14 @@ def twod_fft(image):
     print('done fft_row')
     fft_col = np.transpose(np.array([fft(col) for col in np.transpose(fft_row)]))
     return fft_col
+
+def twod_dft(image):
+    print('start dft_row')
+    print(len(image))
+    dft_row = np.array([dft(row) for row in image])
+    print('done dft_row')
+    dft_col = np.transpose(np.array([dft(col) for col in np.transpose(dft_row)]))
+    return dft_col
 
 def inverse_fft(ft):
     N = len(ft)
@@ -142,8 +179,6 @@ def process_image(img):
     f = twod_fft(img)
     print('done twod_fft')
     fft_magnitude = np.log(np.abs(f) + 1)
-    # fshift = np.fft.fftshift(f)
-    # magnitude_spectrum = 20*np.log(np.abs(fshift))
  
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
@@ -155,13 +190,15 @@ def plot_runtime():
     sizes = [2**i for i in range(5, 10)]
     naive_times = []
     fft_times = []
+    npfft_times = []
 
     for size in sizes:
         random_image = np.random.random((size, size))
+        print(random_image)
         
-        # Measure runtime for Naïve DFT
+        # Measure runtime for DFT
         start = time.time()
-        dft(random_image)
+        twod_dft(random_image)
         naive_times.append(time.time() - start)
 
         # Measure runtime for FFT
@@ -169,11 +206,16 @@ def plot_runtime():
         twod_fft(random_image)
         fft_times.append(time.time() - start)
 
+        start = time.time()
+        np.fft.fft2(random_image)
+        npfft_times.append(time.time() - start)
+
     # Plot the runtime comparison
-    plt.plot(sizes, naive_times, label='Naïve DFT')
+    plt.plot(sizes, naive_times, label='DFT')
     plt.plot(sizes, fft_times, label='FFT')
-    plt.xlabel('Image Size (N x N)')
-    plt.ylabel('Time (seconds)')
+    plt.plot(sizes, npfft_times, label='Numpy FFT')
+    plt.xlabel('Problem Size (N x N)')
+    plt.ylabel('Runtime (seconds)')
     plt.legend()
     plt.show()
 
@@ -183,6 +225,7 @@ if __name__ == "__main__":
     if parameters is not None:
         img = cv.imread(parameters['image'], cv.IMREAD_GRAYSCALE)
         fft_image(parameters['image']) # expected
+        npfft_image(parameters['image']) # expected?
         if parameters['mode'] == 1:
             process_image(img)
         elif parameters['mode'] == 2:
