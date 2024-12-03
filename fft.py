@@ -46,6 +46,11 @@ def fft_image(image):
 
 def dft(signal):
     N = len(signal)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    signal = np.append(signal, np.zeros(N_final - N))
+    N = N_final
+
     dft_result = np.zeros(N, dtype=complex)
     for k in range(N):
         result = 0
@@ -57,6 +62,11 @@ def dft(signal):
 
 def inverse_dft(signal):
     N = len(signal)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    signal = np.append(signal, np.zeros(N_final - N))
+    N = N_final
+
     inverse_dft_result = np.zeros(N, dtype=complex)
     for n in range(N):
         result = 0
@@ -68,7 +78,7 @@ def inverse_dft(signal):
 
 def fft_aux(signal, k):
     N = len(signal)
-    if N <= 4:
+    if N <= 32:
         result = 0
         for m in range(N):
             angle = -1j * 2 * np.pi * k * m / N
@@ -93,19 +103,9 @@ def fft(signal):
 
 def twod_fft(image):
     fft_row = np.array([fft(row) for row in image])
-    fft_col = np.array([fft(col) for col in fft_row.T]).T
+    fft_col = np.transpose(np.array([fft(col) for col in np.transpose(fft_row)]))
     return fft_col
 
-## 
-def two_d_fft(image):
-    N = len(image)
-    M = len(image[0])
-    fft_result = np.zeros((N, M), dtype=complex)
-    for i in range(N):
-        fft_result[i] = fft(image[i])
-    for j in range(M):
-        fft_result[:, j] = fft(fft_result[:, j])
-    return fft_result
 
 
 # TODO
@@ -116,9 +116,7 @@ def inverse_fft(ft):
 def process_image(image):
     img = cv.imread(image, cv.IMREAD_GRAYSCALE)
     #print(img[0])
-    print(len(img[0]))
-    print(fft(img[0]))
-
+    print(twod_fft(img))
     """
     dft_result = fft(img[0])
     
