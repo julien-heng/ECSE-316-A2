@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as mcolors
 import math
-
+import time
 
 def set_arguments(args):
     parameters = {
@@ -26,7 +26,10 @@ def set_arguments(args):
                 i += 2
             else:
                 print(f"ERROR\tIncorrect input syntax: expected image after argument {args[i]}")
-                return None   
+                return None  
+        else:
+            print(f"ERROR\tIncorrect input syntax: unknown argument {args[i]}")
+            return None
     return parameters
 
 """
@@ -68,7 +71,7 @@ def inverse_dft(signal):
 
 def fft_aux(signal, k):
     N = len(signal)
-    if N <= 4:
+    if N <= 32:
         result = 0
         for m in range(N):
             angle = -1j * 2 * np.pi * k * m / N
@@ -80,6 +83,7 @@ def fft_aux(signal, k):
         return fft_aux(even, k) + fft_aux(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
 
 def fft(signal):
+    print('start fft')
     N = len(signal)
     power = math.ceil(np.log2(N))
     N_final = 2 ** power
@@ -92,58 +96,91 @@ def fft(signal):
     return fft_result
 
 def twod_fft(image):
+    print('start fft_row')
+    print(len(image))
     fft_row = np.array([fft(row) for row in image])
-    fft_col = np.array([fft(col) for col in fft_row.T]).T
-    return fft_col
+    print('done fft_row')
+    fft_col = np.array([fft(col) for col in np.transpose(fft_row)])
+    return np.transpose(fft_col)
 
-## 
-def two_d_fft(image):
-    N = len(image)
-    M = len(image[0])
-    fft_result = np.zeros((N, M), dtype=complex)
-    for i in range(N):
-        fft_result[i] = fft(image[i])
-    for j in range(M):
-        fft_result[:, j] = fft(fft_result[:, j])
-    return fft_result
-
-
-# TODO
 def inverse_fft(ft):
     N = len(ft)
-    return ""
+    ft_conj = np.conj(ft)
+    result = fft(ft_conj)
+    return np.conj(result) / N
 
-def process_image(image):
-    img = cv.imread(image, cv.IMREAD_GRAYSCALE)
-    #print(img[0])
-    print(len(img[0]))
-    print(fft(img[0]))
+def inverse_2d_fft(image):
+    fft_row = np.array([inverse_fft(row) for row in image])
+    fft_col = np.array([inverse_fft(col) for col in fft_row.T]).T
+    return fft_col
 
-    """
-    dft_result = fft(img[0])
-    
-    print(dft_result)
-    print(np.fft.fft(img[0]))
-    #print(fft(img[0]))
-    """
-    """
+def denoise_image(image, cutoff_frequency):
+    fft_result = twod_fft(image)
+    fft_result[np.abs(fft_result) < cutoff_frequency] = 0
+    return np.abs(inverse_2d_fft(fft_result))
+
+def compress_image(image, compression_percent):
+    fft_result = twod_fft(image)
+    magnitude = np.abs(fft_result)
+    num_coefficients_to_zero = int(fft_result.size * (1 - compression_percent / 100))
+    flat_indices = np.argsort(magnitude.flatten())
+    fft_result.flatten()[flat_indices[:num_coefficients_to_zero]] = 0
+    return np.abs(inverse_2d_fft(fft_result))
+
+def process_image(img):
+    print('start twod_fft')
     f = twod_fft(img)
-    fshift = np.fft.fftshift(f)
-    magnitude_spectrum = 20*np.log(np.abs(fshift))
+    print('done twod_fft')
+    fft_magnitude = np.log(np.abs(f) + 1)
+    # fshift = np.fft.fftshift(f)
+    # magnitude_spectrum = 20*np.log(np.abs(fshift))
  
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-    plt.subplot(122),plt.imshow(magnitude_spectrum, cmap = 'gray')
+    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray')
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
     plt.show()
-    """
+
+def plot_runtime():
+    sizes = [2**i for i in range(5, 10)]
+    naive_times = []
+    fft_times = []
+
+    for size in sizes:
+        random_image = np.random.random((size, size))
+        
+        # Measure runtime for Naïve DFT
+        start = time.time()
+        dft(random_image)
+        naive_times.append(time.time() - start)
+
+        # Measure runtime for FFT
+        start = time.time()
+        twod_fft(random_image)
+        fft_times.append(time.time() - start)
+
+    # Plot the runtime comparison
+    plt.plot(sizes, naive_times, label='Naïve DFT')
+    plt.plot(sizes, fft_times, label='FFT')
+    plt.xlabel('Image Size (N x N)')
+    plt.ylabel('Time (seconds)')
+    plt.legend()
+    plt.show()
 
 if __name__ == "__main__":
-    
     parameters = set_arguments(sys.argv)
-    process_image(parameters['image'])
-    
-    #fft_image(parameters['image'])
-    #print("done")
-
-
+    print(parameters)
+    if parameters is not None:
+        img = cv.imread(parameters['image'], cv.IMREAD_GRAYSCALE)
+        fft_image(parameters['image']) # expected
+        if parameters['mode'] == 1:
+            process_image(img)
+        elif parameters['mode'] == 2:
+            denoised_img = denoise_image(img, 10)
+            process_image(denoised_img)
+        elif parameters['mode'] == 3:
+            compress_image(img, 10)
+            process_image(img)
+        elif parameters['mode'] == 4:
+            plot_runtime()
+    print("done")
