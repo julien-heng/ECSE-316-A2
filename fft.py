@@ -48,51 +48,45 @@ def dft(signal):
     N = len(signal)
     dft_result = np.zeros(N, dtype=complex)
     for k in range(N):
+        result = 0
         for n in range(N):  
             angle = -1j * 2 * np.pi * k * n / N
-            dft_result[n] = signal[n] * np.exp(angle)
+            result += signal[n] * np.exp(angle)
+        dft_result[k] = result
     return dft_result
 
 def inverse_dft(signal):
     N = len(signal)
     inverse_dft_result = np.zeros(N, dtype=complex)
-    for k in range(N):
-        for i in range(N):  
-            angle = 1j * 2 * np.pi * k * i / N
-            inverse_dft_result[k] = signal[k] * np.exp(angle) / N
+    for n in range(N):
+        result = 0
+        for k in range(N):  
+            angle = 1j * 2 * np.pi * k * n / N
+            result += signal[k] * np.exp(angle)
+        inverse_dft_result[n] = result / N
     return inverse_dft_result
 
 def fft_aux(signal, k):
     N = len(signal)
-    if N == 1:  # Base case: single element
-        return signal[0]
-    else:
-        # Split into even and odd parts
-        even = fft_aux(signal[::2], k)
-        odd = fft_aux(signal[1::2], k)
-        
-        # The factor for the odd elements, applying the FFT combination formula
-        factor = np.exp(-2j * np.pi * k / N)
-        
-        # Combine even and odd results
-        return even + factor * odd
-    """
-    N = len(signal)
-    if N < 4:
+    if N <= 4:
         result = 0
-        for n in range(N):
-            angle = -1j * 2 * np.pi * k * n / N
-            result += signal[n] * np.exp(angle)
+        for m in range(N):
+            angle = -1j * 2 * np.pi * k * m / N
+            result += signal[m] * np.exp(angle)
         return result
     else:
         even = [signal[i] for i in range(0, N, 2)]
         odd = [signal[i] for i in range(1, N, 2)]
         return fft_aux(even, k) + fft_aux(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
-    """
 
 def fft(signal):
     N = len(signal)
-    fft_result = np.zeros(N, dtype=complex)
+    power = math.ceil(np.log2(N))
+    N_final = 2 ** power
+    signal = np.append(signal, np.zeros(N_final - N))
+    N = N_final
+
+    fft_result = np.zeros(N_final, dtype=complex)
     for k in range(N):
         fft_result[k] = fft_aux(signal, k)
     return fft_result
@@ -121,6 +115,18 @@ def inverse_fft(ft):
 
 def process_image(image):
     img = cv.imread(image, cv.IMREAD_GRAYSCALE)
+    #print(img[0])
+    print(len(img[0]))
+    print(fft(img[0]))
+
+    """
+    dft_result = fft(img[0])
+    
+    print(dft_result)
+    print(np.fft.fft(img[0]))
+    #print(fft(img[0]))
+    """
+    """
     f = twod_fft(img)
     fshift = np.fft.fftshift(f)
     magnitude_spectrum = 20*np.log(np.abs(fshift))
@@ -130,9 +136,14 @@ def process_image(image):
     plt.subplot(122),plt.imshow(magnitude_spectrum, cmap = 'gray')
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
     plt.show()
+    """
 
 if __name__ == "__main__":
+    
     parameters = set_arguments(sys.argv)
     process_image(parameters['image'])
-    fft_image(parameters['image'])
-    print("done")
+    
+    #fft_image(parameters['image'])
+    #print("done")
+
+
