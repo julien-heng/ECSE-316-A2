@@ -172,7 +172,7 @@ def compress_image(image, compression_percent):
                 fft_result[i, j] = 0
                 number_zeroed += 1
 
-    total_coefficients = magnitude.size[0] * magnitude.size[1]
+    total_coefficients = magnitude.shape[0] * magnitude.shape[1]
     original_coefficients = total_coefficients - number_zeroed
     print(f"Compression Level: {compression_percent}")
     print(f"Number of zeroed Fourier coefficients: {number_zeroed}")
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         elif parameters['mode'] == 2:
             denoise_image(img, 300, 250)
         elif parameters['mode'] == 3:
-            compress_image(img, 1000)
+            compress_image(img, 70)
         elif parameters['mode'] == 4:
             plot()
     print("done")
