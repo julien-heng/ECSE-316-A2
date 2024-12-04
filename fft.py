@@ -160,7 +160,7 @@ def denoise_image(image, cutoff_frequency):
     for i in range(rows):
         for j in range(cols):
             dist = np.sqrt((i - center_row) ** 2 + (j - center_col) ** 2)
-            if dist <= cutoff_frequency:
+            if dist >= cutoff_frequency:
                 mask[i, j] = 1
 
     fft_result_filtered = fft_result * mask
@@ -248,7 +248,7 @@ if __name__ == "__main__":
         if parameters['mode'] == 1:
             process_image(img, 1)
         elif parameters['mode'] == 2:
-            denoise_image(img, 50) # 200 was good when using built in fft
+            denoise_image(img, 500) # 200 was good when using built in fft
         elif parameters['mode'] == 3:
             compress_image(img, 1000)
         elif parameters['mode'] == 4:
