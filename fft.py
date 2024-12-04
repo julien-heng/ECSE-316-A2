@@ -186,38 +186,55 @@ def process_image(img):
     plt.colorbar()
     plt.show()
 
-def plot_runtime():
+def measure_runtime(method, image):
+    runtimes = []
+    for _ in range(10): # 10 trials
+        start_time = time.time()
+        method(image)
+        runtimes.append(time.time() - start_time)
+    return np.mean(runtimes), np.std(runtimes)
+
+def plot():
     sizes = [2**i for i in range(5, 8)]
-    naive_times = []
-    fft_times = []
-    npfft_times = []
+    mean_runtimes_naive = []
+    std_runtimes_naive = []
+    mean_runtimes_fft = []
+    std_runtimes_fft = []
 
     for size in sizes:
-        random_image = np.random.random((size, size))
-        print(random_image)
+        image = np.random.rand(size, size).astype(np.float32)
         
-        # Measure runtime for DFT
-        start = time.time()
-        twod_dft(random_image)
-        naive_times.append(time.time() - start)
+        mean_naive, std_naive = measure_runtime(twod_dft, image)
+        mean_runtimes_naive.append(mean_naive)
+        std_runtimes_naive.append(std_naive)
+        
+        mean_fft, std_fft = measure_runtime(twod_fft, image)
+        mean_runtimes_fft.append(mean_fft)
+        std_runtimes_fft.append(std_fft)
 
-        # Measure runtime for FFT
-        start = time.time()
-        twod_fft(random_image)
-        fft_times.append(time.time() - start)
+    # Error bars (97% confidence interval, 2 * std deviation)
+    error_bars_naive = [2 * std for std in std_runtimes_naive]
+    error_bars_fft = [2 * std for std in std_runtimes_fft]
 
-        # Measure runtime for Numpy FFT
-        start = time.time()
-        np.fft.fft2(random_image)
-        npfft_times.append(time.time() - start)
+    plt.figure(figsize=(10, 6))
+    plt.plot(sizes, mean_runtimes_naive, label='Naive Method', marker='o', color='b')
+    plt.fill_between(sizes, 
+                    np.array(mean_runtimes_naive) - np.array(error_bars_naive), 
+                    np.array(mean_runtimes_naive) + np.array(error_bars_naive), 
+                    color='b', alpha=0.2)
 
-    # Plot the runtime comparison
-    plt.plot(sizes, naive_times, label='DFT')
-    plt.plot(sizes, fft_times, label='FFT')
-    # plt.plot(sizes, npfft_times, label='Numpy FFT')
-    plt.xlabel('Problem Size (N x N)')
-    plt.ylabel('Runtime (seconds)')
+    plt.plot(sizes, mean_runtimes_fft, label='FFT Method', marker='o', color='r')
+    plt.fill_between(sizes, 
+                    np.array(mean_runtimes_fft) - np.array(error_bars_fft), 
+                    np.array(mean_runtimes_fft) + np.array(error_bars_fft), 
+                    color='r', alpha=0.2)
+    plt.xlabel('Problem Size (Image Dimensions)')
+    plt.ylabel('Mean Runtime (Seconds)')
+    plt.title('Runtime Comparison: Naive Method vs. FFT-based Denoising')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.legend()
+    plt.grid(True)
     plt.show()
 
 
@@ -228,11 +245,11 @@ if __name__ == "__main__":
     if parameters is not None:
         img = cv.imread(parameters['image'], cv.IMREAD_GRAYSCALE)
         if parameters['mode'] == 1:
-            process_image(img, 1)
+            process_image(img)
         elif parameters['mode'] == 2:
-            denoise_image(img, 300, 250) # 200 was good when using built in fft
+            denoise_image(img, 300, 250)
         elif parameters['mode'] == 3:
             compress_image(img, 1000)
         elif parameters['mode'] == 4:
-            plot_runtime()
-    
+            plot()
+    print("done")
