@@ -2,7 +2,7 @@ import sys
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.colors as mcolors
+from matplotlib.colors import LogNorm
 import math
 import time
 
@@ -36,25 +36,24 @@ def set_arguments(args):
 GOAL OUTPUT:
 """
 def fft_image(image):
-    img = cv.imread(image, cv.IMREAD_GRAYSCALE)
-    f = np.fft.fft2(img)
+    f = np.fft.fft2(image)
     fshift = np.fft.fftshift(f)
-    magnitude_spectrum = 20*np.log(np.abs(fshift))
+    magnitude_spectrum = np.log(np.abs(fshift)+ 1)
  
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
-    plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-    plt.subplot(122),plt.imshow(magnitude_spectrum, cmap = 'gray')
-    plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    plt.title('Input Image'), plt.xticks(), plt.yticks()
+    plt.subplot(122),plt.imshow(magnitude_spectrum, cmap = 'gray', norm=LogNorm(vmin=1))
+    plt.title('Magnitude Spectrum'), plt.xticks(), plt.yticks()
+    plt.colorbar()
     plt.show()
 
 def npfft_image(image):
-    img = cv.imread(image, cv.IMREAD_GRAYSCALE)
-    f = np.fft.fft2(img)
+    f = np.fft.fft2(image)
     fft_magnitude = np.log(np.abs(f) + 1)
  
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray')
+    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray', norm=LogNorm(vmin=1))
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
     plt.show()
 
@@ -104,24 +103,7 @@ def fft_aux(signal, k):
         odd = [signal[i] for i in range(1, N, 2)]
         return fft_aux(even, k) + fft_aux(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
 
-# Doesn't work
-'''
-def fft(signal):
-    print('start fft')
-    N = len(signal)
-    power = math.ceil(np.log2(N))
-    N_final = 2 ** power
-    signal = np.append(signal, np.zeros(N_final - N))
-    N = N_final
-
-    fft_result = np.zeros(N_final, dtype=complex)
-    for k in range(N):
-        fft_result[k] = fft_aux(signal, k)
-    return fft_result
-'''
-
 def fft(x):
-    print('fft')
     N = len(x)
     power = math.ceil(np.log2(N))
     N_final = 2 ** power
@@ -131,12 +113,15 @@ def fft(x):
         return x
     even = fft(x[::2])
     odd = fft(x[1::2])
-    factor = np.exp(-2j * np.pi * np.arange(N) / N)
-    return np.concatenate([even + factor[:N//2] * odd, even + factor[N//2:] * odd])
+    factor = [np.exp(-2j * np.pi * i / N) for i in range(N)]
+
+    result_1 = [even[i] + factor[i] * odd[i] for i in range(N//2)]
+    result_2 = [even[i] + factor[i+N//2] * odd[i] for i in range(N//2)]
+    # return np.concatenate([even + factor[:N//2] * odd, even + factor[N//2:] * odd])
+    return np.concatenate([result_1, result_2])
 
 def twod_fft(image):
     print('start fft_row')
-    print(len(image))
     fft_row = np.array([fft(row) for row in image])
     print('done fft_row')
     fft_col = np.transpose(np.array([fft(col) for col in np.transpose(fft_row)]))
@@ -144,7 +129,6 @@ def twod_fft(image):
 
 def twod_dft(image):
     print('start dft_row')
-    print(len(image))
     dft_row = np.array([dft(row) for row in image])
     print('done dft_row')
     dft_col = np.transpose(np.array([dft(col) for col in np.transpose(dft_row)]))
@@ -157,14 +141,43 @@ def inverse_fft(ft):
     return np.conj(result) / N
 
 def inverse_2d_fft(image):
+    # return np.fft.ifft2(np.fft.ifftshift(image))
     fft_row = np.array([inverse_fft(row) for row in image])
     fft_col = np.array([inverse_fft(col) for col in fft_row.T]).T
     return fft_col
 
+def fft2d(image):
+    """ Perform 2D FFT and shift the result to center low frequencies. """
+    return np.fft.fftshift(np.fft.fft2(image))
+
 def denoise_image(image, cutoff_frequency):
     fft_result = twod_fft(image)
-    fft_result[np.abs(fft_result) < cutoff_frequency] = 0
-    return np.abs(inverse_2d_fft(fft_result))
+
+    rows, cols = fft_result.shape
+    center_row, center_col = rows // 2, cols // 2
+    mask = np.zeros((rows, cols))
+    
+    for i in range(rows):
+        for j in range(cols):
+            dist = np.sqrt((i - center_row) ** 2 + (j - center_col) ** 2)
+            if dist <= cutoff_frequency:
+                mask[i, j] = 1
+
+    fft_result_filtered = fft_result * mask
+    
+    non_zero_coefficients = np.count_nonzero(mask)
+    total_coefficients = image.size
+    fraction = non_zero_coefficients / total_coefficients
+    print(f"Number of non-zero Fourier coefficients: {non_zero_coefficients}")
+    print(f"Fraction of original Fourier coefficients: {fraction:.4f}")
+
+    denoised = np.abs(inverse_2d_fft(fft_result_filtered))
+    
+    plt.subplot(121),plt.imshow(image, cmap = 'gray')
+    plt.title('Input Image'), plt.xticks(), plt.yticks()
+    plt.subplot(122),plt.imshow(denoised, cmap = 'gray')
+    plt.title('Denoised Image'), plt.xticks(), plt.yticks()
+    plt.show()
 
 def compress_image(image, compression_percent):
     fft_result = twod_fft(image)
@@ -172,22 +185,29 @@ def compress_image(image, compression_percent):
     num_coefficients_to_zero = int(fft_result.size * (1 - compression_percent / 100))
     flat_indices = np.argsort(magnitude.flatten())
     fft_result.flatten()[flat_indices[:num_coefficients_to_zero]] = 0
-    return np.abs(inverse_2d_fft(fft_result))
+    compressed = np.abs(inverse_2d_fft(fft_result))
+
+    plt.subplot(121),plt.imshow(img, cmap = 'gray')
+    plt.title('Input Image'), plt.xticks(), plt.yticks()
+    plt.subplot(122),plt.imshow(compressed, cmap = 'gray')
+    plt.title('Magnitude Spectrum'), plt.xticks(), plt.yticks()
+    plt.show()
 
 def process_image(img):
-    print('start twod_fft')
+    print('start process img')
     f = twod_fft(img)
-    print('done twod_fft')
+    print('done process img')
     fft_magnitude = np.log(np.abs(f) + 1)
- 
+
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
-    plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray')
-    plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    plt.title('Input Image'), plt.xticks(), plt.yticks()
+    plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray', norm=LogNorm(vmin=1))
+    plt.title('Magnitude Spectrum'), plt.xticks(), plt.yticks()
+    plt.colorbar()
     plt.show()
 
 def plot_runtime():
-    sizes = [2**i for i in range(5, 10)]
+    sizes = [2**i for i in range(5, 8)]
     naive_times = []
     fft_times = []
     npfft_times = []
@@ -206,6 +226,7 @@ def plot_runtime():
         twod_fft(random_image)
         fft_times.append(time.time() - start)
 
+        # Measure runtime for Numpy FFT
         start = time.time()
         np.fft.fft2(random_image)
         npfft_times.append(time.time() - start)
@@ -213,7 +234,7 @@ def plot_runtime():
     # Plot the runtime comparison
     plt.plot(sizes, naive_times, label='DFT')
     plt.plot(sizes, fft_times, label='FFT')
-    plt.plot(sizes, npfft_times, label='Numpy FFT')
+    # plt.plot(sizes, npfft_times, label='Numpy FFT')
     plt.xlabel('Problem Size (N x N)')
     plt.ylabel('Runtime (seconds)')
     plt.legend()
@@ -224,16 +245,12 @@ if __name__ == "__main__":
     print(parameters)
     if parameters is not None:
         img = cv.imread(parameters['image'], cv.IMREAD_GRAYSCALE)
-        fft_image(parameters['image']) # expected
-        npfft_image(parameters['image']) # expected?
         if parameters['mode'] == 1:
-            process_image(img)
+            process_image(img, 1)
         elif parameters['mode'] == 2:
-            denoised_img = denoise_image(img, 10)
-            process_image(denoised_img)
+            denoise_image(img, 50) # 200 was good when using built in fft
         elif parameters['mode'] == 3:
-            compress_image(img, 10)
-            process_image(img)
+            compress_image(img, 1000)
         elif parameters['mode'] == 4:
             plot_runtime()
     print("done")
