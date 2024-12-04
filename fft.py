@@ -57,6 +57,10 @@ def npfft_image(image):
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
     plt.show()
 
+"""
+OUR CODE:
+"""
+
 def dft(signal):
     N = len(signal)
     power = math.ceil(np.log2(N))
@@ -89,20 +93,6 @@ def inverse_dft(signal):
         inverse_dft_result[n] = result / N
     return inverse_dft_result
 
-# Unused
-def fft_aux(signal, k):
-    N = len(signal)
-    if N <= 4:
-        result = 0
-        for m in range(N):
-            angle = -1j * 2 * np.pi * k * m / N
-            result += signal[m] * np.exp(angle)
-        return result
-    else:
-        even = [signal[i] for i in range(0, N, 2)]
-        odd = [signal[i] for i in range(1, N, 2)]
-        return fft_aux(even, k) + fft_aux(odd, k) * np.exp(-1j * 2 * np.pi * k / N)
-
 def fft(x):
     N = len(x)
     power = math.ceil(np.log2(N))
@@ -117,61 +107,51 @@ def fft(x):
 
     result_1 = [even[i] + factor[i] * odd[i] for i in range(N//2)]
     result_2 = [even[i] + factor[i+N//2] * odd[i] for i in range(N//2)]
-    # return np.concatenate([even + factor[:N//2] * odd, even + factor[N//2:] * odd])
+    return np.concatenate([result_1, result_2])
+
+def inverse_fft(x):
+    N = len(x)
+    if N <= 1:
+        return x
+    even = inverse_fft(x[::2])
+    odd = inverse_fft(x[1::2])
+    factor = [np.exp(2j * np.pi * i / N) for i in range(N)]
+
+    result_1 = [(even[i] + factor[i] * odd[i])/2 for i in range(N//2)]
+    result_2 = [(even[i] + factor[i+N//2] * odd[i])/2 for i in range(N//2)]
     return np.concatenate([result_1, result_2])
 
 def twod_fft(image):
-    print('start fft_row')
     fft_row = np.array([fft(row) for row in image])
-    print('done fft_row')
     fft_col = np.transpose(np.array([fft(col) for col in np.transpose(fft_row)]))
     return fft_col
 
 def twod_dft(image):
-    print('start dft_row')
     dft_row = np.array([dft(row) for row in image])
-    print('done dft_row')
     dft_col = np.transpose(np.array([dft(col) for col in np.transpose(dft_row)]))
     return dft_col
 
-def inverse_fft(ft):
-    N = len(ft)
-    ft_conj = np.conj(ft)
-    result = fft(ft_conj)
-    return np.conj(result) / N
-
 def inverse_2d_fft(image):
-    # return np.fft.ifft2(np.fft.ifftshift(image))
     fft_row = np.array([inverse_fft(row) for row in image])
-    fft_col = np.array([inverse_fft(col) for col in fft_row.T]).T
+    fft_col = np.transpose(np.array([inverse_fft(col) for col in np.transpose(fft_row)]))
     return fft_col
 
-def fft2d(image):
-    """ Perform 2D FFT and shift the result to center low frequencies. """
-    return np.fft.fftshift(np.fft.fft2(image))
-
-def denoise_image(image, cutoff_frequency):
+def denoise_image(image, cutoff_x, cutoff_y):
     fft_result = twod_fft(image)
-
     rows, cols = fft_result.shape
-    center_row, center_col = rows // 2, cols // 2
-    mask = np.zeros((rows, cols))
-    
     for i in range(rows):
         for j in range(cols):
-            dist = np.sqrt((i - center_row) ** 2 + (j - center_col) ** 2)
-            if dist >= cutoff_frequency:
-                mask[i, j] = 1
+           if i > cutoff_x or j > cutoff_y:
+                fft_result[i, j] = 0
 
-    fft_result_filtered = fft_result * mask
-    
-    non_zero_coefficients = np.count_nonzero(mask)
-    total_coefficients = image.size
+    denoised = np.abs(inverse_2d_fft(fft_result))
+
+    non_zero_coefficients = cutoff_x * cutoff_y
+    total_coefficients = rows * cols
+
     fraction = non_zero_coefficients / total_coefficients
     print(f"Number of non-zero Fourier coefficients: {non_zero_coefficients}")
     print(f"Fraction of original Fourier coefficients: {fraction:.4f}")
-
-    denoised = np.abs(inverse_2d_fft(fft_result_filtered))
     
     plt.subplot(121),plt.imshow(image, cmap = 'gray')
     plt.title('Input Image'), plt.xticks(), plt.yticks()
@@ -240,6 +220,8 @@ def plot_runtime():
     plt.legend()
     plt.show()
 
+
+
 if __name__ == "__main__":
     parameters = set_arguments(sys.argv)
     print(parameters)
@@ -248,9 +230,9 @@ if __name__ == "__main__":
         if parameters['mode'] == 1:
             process_image(img, 1)
         elif parameters['mode'] == 2:
-            denoise_image(img, 500) # 200 was good when using built in fft
+            denoise_image(img, 300, 250) # 200 was good when using built in fft
         elif parameters['mode'] == 3:
             compress_image(img, 1000)
         elif parameters['mode'] == 4:
             plot_runtime()
-    print("done")
+    
