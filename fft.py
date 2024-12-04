@@ -162,9 +162,22 @@ def denoise_image(image, cutoff_x, cutoff_y):
 def compress_image(image, compression_percent):
     fft_result = twod_fft(image)
     magnitude = np.abs(fft_result)
-    num_coefficients_to_zero = int(fft_result.size * (1 - compression_percent / 100))
-    flat_indices = np.argsort(magnitude.flatten())
-    fft_result.flatten()[flat_indices[:num_coefficients_to_zero]] = 0
+
+    threshold = np.percentile(magnitude, compression_percent)
+
+    number_zeroed = 0
+    for i in range(magnitude.shape[0]):
+        for j in range(magnitude.shape[1]):
+            if magnitude[i, j] < threshold:
+                fft_result[i, j] = 0
+                number_zeroed += 1
+
+    total_coefficients = magnitude.size[0] * magnitude.size[1]
+    original_coefficients = total_coefficients - number_zeroed
+    print(f"Compression Level: {compression_percent}")
+    print(f"Number of zeroed Fourier coefficients: {number_zeroed}")
+    print(f"Number of original Fourier coefficients: {original_coefficients}") 
+
     compressed = np.abs(inverse_2d_fft(fft_result))
 
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
