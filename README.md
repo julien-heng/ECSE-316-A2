@@ -2,7 +2,7 @@
 ECSE 316 | Assignment 2 | Julien Heng, Sophia Li
 
 ## Run the Program
-This program was written and tested with Python version 3.9.6.
+This program was written and tested with Python version 3.13.0.
 
 ### How to Run
 

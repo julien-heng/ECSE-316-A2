@@ -55,6 +55,7 @@ def npfft_image(image):
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
     plt.subplot(122),plt.imshow(fft_magnitude, cmap = 'gray', norm=LogNorm(vmin=1))
     plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    plt.colorbar()
     plt.show()
 
 """
@@ -179,17 +180,10 @@ def compress_image(image, compression_percent):
     print(f"Number of original Fourier coefficients: {original_coefficients}") 
 
     compressed = np.abs(inverse_2d_fft(fft_result))
-
-    plt.subplot(121),plt.imshow(img, cmap = 'gray')
-    plt.title('Input Image'), plt.xticks(), plt.yticks()
-    plt.subplot(122),plt.imshow(compressed, cmap = 'gray')
-    plt.title('Magnitude Spectrum'), plt.xticks(), plt.yticks()
-    plt.show()
+    return compressed, fft_result
 
 def process_image(img):
-    print('start process img')
     f = twod_fft(img)
-    print('done process img')
     fft_magnitude = np.log(np.abs(f) + 1)
 
     plt.subplot(121),plt.imshow(img, cmap = 'gray')
@@ -208,7 +202,7 @@ def measure_runtime(method, image):
     return np.mean(runtimes), np.std(runtimes)
 
 def plot():
-    sizes = [2**i for i in range(5, 10)]
+    sizes = [2**i for i in range(5, 9)] # my laptop could only handle up to 2^8
     mean_runtimes_naive = []
     std_runtimes_naive = []
     mean_runtimes_fft = []
@@ -244,7 +238,25 @@ def plot():
     plt.grid(True)
     plt.show()
 
+def compression_display(image):
+    plt.figure(figsize=(12, 8))
+    sizes = []
+    compression_levels = [0, 20, 40, 60, 80, 99.9]
 
+    for i, compression_percent in enumerate(compression_levels):
+        compressed, fft_result = compress_image(image, compression_percent)
+        sparse_matrix_size = np.sum(fft_result != 0) * fft_result.itemsize
+        sizes.append(sparse_matrix_size)
+
+        plt.subplot(2, 3, i + 1)
+        plt.imshow(compressed, cmap='gray')
+        plt.title(f'{compression_percent}% compression\nSize: {sparse_matrix_size} bytes')
+
+    plt.tight_layout()
+    plt.show()
+
+    for level, size in zip(compression_levels, sizes):
+        print(f"Compression Level: {level}% -> Compressed Size: {size} bytes")
 
 if __name__ == "__main__":
     parameters = set_arguments(sys.argv)
@@ -255,6 +267,6 @@ if __name__ == "__main__":
         elif parameters['mode'] == 2:
             denoise_image(img, 300, 250)
         elif parameters['mode'] == 3:
-            compress_image(img, 70)
+            compression_display(img)
         elif parameters['mode'] == 4:
             plot()
