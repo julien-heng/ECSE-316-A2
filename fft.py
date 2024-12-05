@@ -208,7 +208,7 @@ def measure_runtime(method, image):
     return np.mean(runtimes), np.std(runtimes)
 
 def plot():
-    sizes = [2**i for i in range(5, 8)]
+    sizes = [2**i for i in range(5, 10)]
     mean_runtimes_naive = []
     std_runtimes_naive = []
     mean_runtimes_fft = []
@@ -225,27 +225,21 @@ def plot():
         mean_runtimes_fft.append(mean_fft)
         std_runtimes_fft.append(std_fft)
 
+        print(f"Size: {size}, Naive Method: {mean_naive:.4f}s +/- {std_naive:.4f}s, FFT Method: {mean_fft:.4f}s +/- {std_fft:.4f}s")
+
     # Error bars (97% confidence interval, 2 * std deviation)
     error_bars_naive = [2 * std for std in std_runtimes_naive]
     error_bars_fft = [2 * std for std in std_runtimes_fft]
 
     plt.figure(figsize=(10, 6))
     plt.plot(sizes, mean_runtimes_naive, label='Naive Method', marker='o', color='b')
-    plt.fill_between(sizes, 
-                    np.array(mean_runtimes_naive) - np.array(error_bars_naive), 
-                    np.array(mean_runtimes_naive) + np.array(error_bars_naive), 
-                    color='b', alpha=0.2)
+    plt.errorbar(sizes, mean_runtimes_naive, error_bars_naive, ecolor='k')
 
     plt.plot(sizes, mean_runtimes_fft, label='FFT Method', marker='o', color='r')
-    plt.fill_between(sizes, 
-                    np.array(mean_runtimes_fft) - np.array(error_bars_fft), 
-                    np.array(mean_runtimes_fft) + np.array(error_bars_fft), 
-                    color='r', alpha=0.2)
+    plt.errorbar(sizes, mean_runtimes_fft, error_bars_fft, ecolor='k')
     plt.xlabel('Problem Size (Image Dimensions)')
     plt.ylabel('Mean Runtime (Seconds)')
-    plt.title('Runtime Comparison: Naive Method vs. FFT-based Denoising')
-    plt.xscale('log')
-    plt.yscale('log')
+    plt.title('Runtime Comparison: Naive Method vs. Cooley-Tukey FFT')
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -254,7 +248,6 @@ def plot():
 
 if __name__ == "__main__":
     parameters = set_arguments(sys.argv)
-    print(parameters)
     if parameters is not None:
         img = cv.imread(parameters['image'], cv.IMREAD_GRAYSCALE)
         if parameters['mode'] == 1:
@@ -265,4 +258,3 @@ if __name__ == "__main__":
             compress_image(img, 70)
         elif parameters['mode'] == 4:
             plot()
-    print("done")
